@@ -64,7 +64,7 @@ def main():
             fig = outliner.create_mind_map(outline)
             st.plotly_chart(fig)
 
-        selected_node = st.selectbox("Select a section to expand:", outline[1])
+        selected_node = st.selectbox("Select a section to expand:", outline)
         if st.button("Expand Section"):
             with st.spinner("Expanding section..."):
                 expanded_content = generator.expand_section(selected_node)
