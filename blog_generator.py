@@ -9,6 +9,11 @@ from textblob import TextBlob
 
 load_dotenv()
 
+def format_bullets(content):
+    content = re.sub(r'(\d+\. )', r'\n\1', content)  
+    content = re.sub(r'(\n- )', r'\n\n- ', content)  
+    return content.strip()
+
 class Model:
     def __init__(self):
         self.llm = ChatGroq(
@@ -17,11 +22,17 @@ class Model:
             api_key=st.secrets["LLAMA_API_KEY"]
         )
 
+
+    def clean_content(self, content):
+        content = re.sub(r'[^\w\s.,!?\'"-\u0900-\u097F\u0600-\u06FF\u4E00-\u9FFF\uAC00-\uD7AF\u3040-\u309F\u30A0-\u30FF]', '', content)
+        return content
+    
+
     def generate_outline(self, topic):
         prompt = PromptTemplate(
             input_variables=["topic"],
             template="""
-                Create a detailed outline in for a blog post about {topic}. 
+                Create a detailed outline in for a blog post on topic: {topic}. 
                 Provide at least 5 main points with 2-3 subpoints each. 
                 Use statistical data and facts.
             """
@@ -37,19 +48,23 @@ class Model:
 
         outline = [item.strip() for item in outline_text.split('\n') if item.strip()]
         return outline
+    
 
-    def generate_content(self, topic, style="formal", words=500):
+    def generate_content(self, topic, style="formal", words=500, language="English"):
         prompt = PromptTemplate(
-            input_variables=["style", "topic", "words"],
+            input_variables=["style", "topic", "words", "language"],
             template=
             """
-                Write a {style} blog post about {topic} in exactly {words} words. 
-                Make sure it is engaging, informative, statistical and factual.
+                Write a {style} blog post in {language} language about {topic} in exactly {words} words. 
+                The content should include exactly 3-4 key points, with each point in a new line, 
+                clearly presented using bullet points or numbered lists.
+                Ensure the text is engaging, informative, statistical, and factual.
+                Stay within the word count limit.
             """,
             validate_template=True
         )
         chain = prompt | self.llm
-        data = {"topic": topic, "style": style, "words": words}
+        data = {"topic": topic, "style": style, "words": words, "language": language}
         response = chain.invoke(data)
 
         if isinstance(response, AIMessage):
@@ -58,26 +73,32 @@ class Model:
             raise ValueError(f"Unexpected response type: {type(response)}")
        
         content = content.strip()  
-        content = re.sub(r'\n+', '\n', content)  
-        content = re.sub(r'[^a-zA-Z0-9\s.,!?\'"-]', '', content) 
+        content = re.sub(r'\n+', '\n', content)
+        content = format_bullets(content)
 
         return content
     
+    
     def analyze_sentiment(self, text):
         blob = TextBlob(text)
-        sentiment = blob.sentiment.polarity  # -1 (negative) to 1 (positive)
+        sentiment = blob.sentiment.polarity 
         return sentiment
     
-    def expand_section(self, section):
+    
+    def expand_section(self, section, words=500, language="English"):
         prompt = PromptTemplate(
-            input_variables=["section"],
+            input_variables=["section", "words", "language"],
             template=
             """
-                Expand on the following blog section with detailed explanations and examples: {section}
+                Expand on the following blog section in {language} language with examples in {words} words: {section}.
+                The content should include exactly 3-4 key points, with each point in a new line, 
+                clearly presented using bullet points or numbered lists.
+                Ensure the text is engaging, informative, statistical, and factual.
+                Stay within the word count limit.
             """
         )
         chain = prompt | self.llm
-        data = prompt.format(section=section)
+        data = {"section": section, "words": words, "language": language}
         response = chain.invoke(data)
         if isinstance(response, AIMessage):
             content = response.content 
@@ -85,6 +106,7 @@ class Model:
             raise ValueError(f"Unexpected response type: {type(response)}")
 
         content = content.strip()  
-        content = re.sub(r'\n+', '\n', content) 
-        content = re.sub(r'[^a-zA-Z0-9\s.,!?\'"-]', '', content)  
+        content = re.sub(r'\n+', '\n', content)
+        content = format_bullets(content)
+
         return content

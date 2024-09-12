@@ -1,6 +1,9 @@
 import streamlit as st
-from blog_generator import Model
 from outliner import Outliner
+from blog_generator import Model
+
+generator = Model()
+mind_map = Outliner()
 
 def format_sentiment(sentiment_score):
     if sentiment_score > 0:
@@ -23,54 +26,76 @@ def main():
         - **Outline Generation:** Get a detailed outline with main points and subpoints for your blog post.
         - **Mind Map Creation:** Visualize your blog outline as a mind map for better organization and planning.
         - **Section Expansion:** Expand specific sections of your blog post with detailed explanations and examples.
-        - **Customizable Style:** Choose from different writing styles including Formal, Casual, Technical, and Research.
         """
     )
+
     with st.sidebar:
         st.write("Select the writing style:")
-        style = st.selectbox("Choose the style:", ["formal", "casual", "technical", "research"])
+        style = st.selectbox("Choose the style:", ["formal", "casual", "technical", "research"], key='style')
 
         st.write("Blog words count:")
-        words = st.selectbox("Choose the word count:", [500, 800, 1000])
+        words = st.selectbox("Choose the word count:", [500, 800, 1000], key='words')
 
     st.write("## Enter Your Blog Topic")
-    topic = st.text_input("Enter your blog topic:")
+    topic = st.text_input("Enter your blog topic:", key='topic')
 
-    if topic:
-        generator = Model()
-        outliner = Outliner()
+    st.header("Preferred Language: ")
+    lang = st.radio(
+        "Choose an option:",
+        ["English", "Hindi", "French", "German"],
+        horizontal=True,
+        key='language'
+    )
 
-        with st.spinner("Generating content..."):
-            content = generator.generate_content(topic, style, words)
-        
-        sentiment = generator.analyze_sentiment(content)
-        formatted_sentiment = format_sentiment(sentiment)
-        st.markdown(f"### Sentiment Analysis of Generated Content\n{formatted_sentiment}", unsafe_allow_html=True)
+    generate_blog = st.button("Generate Blog", key='generate_blog')
 
-        with st.expander("Blog Content"):
+    if generate_blog:
+        if 'content' not in st.session_state or st.session_state.lang != lang:
+            with st.spinner("Generating content and outline..."):
+                content = generator.generate_content(topic, style, words, lang)
+                st.session_state.content = content
+                st.session_state.lang = lang
+                
+                outline = generator.generate_outline(topic)
+                st.session_state.outline = outline
+
+            sentiment = generator.analyze_sentiment(st.session_state.content)
+            formatted_sentiment = format_sentiment(sentiment)
+            st.markdown(f"### Sentiment Analysis of Generated Content\n{formatted_sentiment}", unsafe_allow_html=True)
+
+    if 'content' in st.session_state:
+        with st.expander("Blog Content", expanded=True):
             st.subheader("Generated Content:")
-            st.write(content)
+            st.write(st.session_state.content)
 
-        with st.spinner("Generating outline..."):
-            outline = generator.generate_outline(topic) 
-
-        with st.expander("Outline Details"):
+    if 'outline' in st.session_state:
+        with st.expander("Outline Details", expanded=False):
             st.write("### Generated Outline")
-            for item in outline:
+            for item in st.session_state.outline:
                 st.write(item)
-        
-        with st.expander("Mind Map"):
+
+        with st.expander("Mind Map", expanded=False):
             st.write("### Generated Mind Map")
-            fig = outliner.create_mind_map(outline)
+            fig = mind_map.create_mind_map(st.session_state.outline)
             st.plotly_chart(fig)
 
-        selected_node = st.selectbox("Select a section to expand:", outline)
-        if st.button("Expand Section"):
-            with st.spinner("Expanding section..."):
-                expanded_content = generator.expand_section(selected_node)
-            with st.expander("Expanded content"):
-                st.subheader("Expanded Content:")
-                st.write(expanded_content)
+        selected_node = st.selectbox("Select a section to expand:", st.session_state.outline)
+
+        if 'expanded_content' not in st.session_state:
+            st.session_state.expanded_content = {}
+
+        expand_section = st.button("Expand Section", key='expand_section')
+
+        if expand_section and selected_node:
+            if selected_node not in st.session_state.expanded_content or st.session_state.lang != lang:
+                with st.spinner("Expanding section..."):
+                    expanded_content = generator.expand_section(selected_node, words, lang)
+                    st.session_state.expanded_content[selected_node] = expanded_content
+
+        if selected_node in st.session_state.expanded_content:
+            with st.expander("Expanded Content", expanded=True):
+                st.subheader(f"Expanded Content: {selected_node}")
+                st.write(st.session_state.expanded_content[selected_node])
 
 if __name__ == "__main__":
     main()
