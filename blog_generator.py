@@ -1,5 +1,6 @@
 import os
 import re
+import streamlit as st
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
@@ -13,7 +14,7 @@ class Model:
         self.llm = ChatGroq(
             temperature=0.8,
             model="llama3-70b-8192",
-            api_key=os.getenv("LLAMA_API_KEY")
+            api_key=st.secrets["LLAMA_API_KEY"]
         )
 
     def generate_outline(self, topic):
