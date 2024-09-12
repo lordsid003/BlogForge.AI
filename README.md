@@ -1,6 +1,6 @@
 # BlogForge.AI - AI-Powered Blog Assistant 📝
 
-## Made for EZHackathon (Team: DEBUG.EXE)
+**Made for EZHackathon (Team: DEBUG.EXE)**
 
 Crafting Blogs with personalized preferences and industry-standards with the power of AI
 
