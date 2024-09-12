@@ -6,3 +6,4 @@ flask
 streamlit
 plotly
 networkx
+textblob
